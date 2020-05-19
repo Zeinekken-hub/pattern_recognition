@@ -5,10 +5,6 @@ import (
 	"image/color"
 )
 
-type setByteImage interface {
-	Set(x, y int, b byte)
-}
-
 type byteImage struct {
 	arr [][]byte
 }
@@ -28,9 +24,26 @@ func (arr *byteImage) SetRectangle(x1, y1, x2, y2 int, b byte) {
 	}
 }
 
+func (arr *byteImage) setCenters(rects []rectangle) {
+	for _, rect := range rects {
+		p := getCenterPoint(rect)
+		//fmt.Printf("Center of rect (%d, %d)\n", p.x, p.y)
+		for dx := -3; dx <= 3; dx++ {
+			for dy := -3; dy <= 3; dy++ {
+				arr.arr[p.x+dx][p.y+dy] = 3
+			}
+		}
+	}
+}
+
+func getCenterPoint(rect rectangle) point {
+	return point{x: (rect.end.x + rect.start.x) / 2, y: (rect.end.y + rect.start.y) / 2}
+}
+
 func (arr *byteImage) convertOwnBytesToImage() *image.RGBA {
 	image := image.NewRGBA(image.Rect(0, 0, 600, 600))
 	red := color.RGBA{200, 30, 30, 255}
+	green := color.RGBA{0, 230, 64, 1}
 	lenX := len(arr.arr)
 	lenY := len(arr.arr[0])
 
@@ -41,6 +54,8 @@ func (arr *byteImage) convertOwnBytesToImage() *image.RGBA {
 				image.Set(x, y, color.Black)
 			case 2:
 				image.Set(x, y, red)
+			case 3:
+				image.Set(x, y, green)
 			default:
 				image.Set(x, y, color.White)
 			}

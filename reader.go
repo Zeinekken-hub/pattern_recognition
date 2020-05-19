@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 )
@@ -9,8 +8,6 @@ import (
 func getByteImage(image image.Image) (byteImage, error) {
 	height := image.Bounds().Dy()
 	width := image.Bounds().Dx()
-	fmt.Printf("Image height: %v\n", height)
-	fmt.Printf("Image widght: %v\n", width)
 	res := make([][]byte, width)
 	for i := 0; i < width; i++ {
 		res[i] = make([]byte, height)

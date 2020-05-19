@@ -2,101 +2,114 @@ package main
 
 import (
 	"fmt"
-	"image"
 	"image/jpeg"
-	"image/png"
-	"io"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"text/template"
+	"time"
+)
 
-	"golang.org/x/image/bmp"
+//RecognitionOutput ll
+type RecognitionOutput struct {
+	ExecTime              time.Duration
+	FigureFound           int
+	PathToProccessedImage string
+	FileName              string
+}
+
+var (
+	currPath = "data/1_0001.jpg"
+	fileNum  = 1
 )
 
 func main() {
-	http.HandleFunc("/draw", drawHandler)
-	http.HandleFunc("/main", mainHandler)
-	http.HandleFunc("/upload", loadHandler)
+	http.HandleFunc("/", drawHandler)
 
-	staticHandler := http.StripPrefix("/data/", http.FileServer(http.Dir("./data")))
-	http.Handle("/data/", staticHandler)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
-	fmt.Println("start listen server on port :8080")
 	http.ListenAndServe(":8080", nil)
 }
 
 func drawHandler(w http.ResponseWriter, r *http.Request) {
-	path := "data/1_0001.jpg"
-	key := r.FormValue("imgP")
-	if key != "" {
-		path = key
+	prev, next := r.FormValue("p"), r.FormValue("n")
+	getPathToFile(prev, next)
+	recOut, err := scanAndSaveImage(currPath)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
 	}
 
-	file, err := os.Open(path)
+	tmp := template.Must(template.ParseFiles("index.html"))
+	tmp.Execute(w, *recOut)
+}
+
+func scanAndSaveImage(imagePath string) (*RecognitionOutput, error) {
+	file, err := os.Open(currPath)
 	if err != nil {
-		w.Write([]byte("error for reading file"))
-		return
+		return nil, fmt.Errorf("error for reading file")
 	}
 	defer file.Close()
 
-	typ := r.FormValue("type")
-	var img image.Image
-	switch typ {
-	case "bmp":
-		img, err = bmp.Decode(file)
-		if err != nil {
-			return
-		}
-	default:
-		img, err = jpeg.Decode(file)
-		if err != nil {
-			return
-		}
-	}
-
+	start := time.Now()
+	img, err := jpeg.Decode(file)
 	slc, err := getByteImage(img)
 	if err != nil {
-		w.Write([]byte("getBinarySlice error"))
-		return
+		return nil, fmt.Errorf("get binary slice error")
 	}
-
 	rectangles := scan(slc.arr)
-
+	slc.setCenters(rectangles)
 	for _, rect := range rectangles {
 		slc.SetRectangle(rect.start.x, rect.start.y, rect.end.x, rect.end.y, 2)
 	}
-
 	imgRgba := slc.convertOwnBytesToImage()
+	elapsed := time.Since(start)
 
-	png.Encode(w, imgRgba)
-}
-
-func mainHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`
-	<html>
-	<body>
-		<form action="/upload" method="post" enctype="multipart/form-data">
-			Image: <input type="file" name="my_file">
-			<input type="submit" value="Upload">
-		</form>
-	</body>
-	</html>
-	`))
-}
-
-func loadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseMultipartForm(10 * 1024 * 1024)
-	file, handler, err := r.FormFile("my_file")
+	fName := strings.Split(currPath, "/")[1]
+	fPath := "static/data/" + fName
+	file, err = os.Create(fPath)
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		panic(err)
 	}
 	defer file.Close()
+	jpeg.Encode(file, imgRgba, nil)
 
-	newFile, err := os.Create("load_data/" + handler.Filename)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	return &RecognitionOutput{
+		ExecTime:              elapsed,
+		FigureFound:           len(rectangles),
+		PathToProccessedImage: fPath,
+		FileName:              fName,
+	}, nil
+}
+
+func formatPathByInt(x int) string {
+	s := "data/1_00"
+	if x < 10 {
+		s += "0" + strconv.Itoa(x)
+	} else {
+		s += strconv.Itoa(x)
 	}
-	defer newFile.Close()
-	io.Copy(newFile, file)
+	s += ".jpg"
+	return s
+}
+
+func getPathToFile(prevPost, nextPost string) {
+	if prevPost != "" {
+		fileNum--
+		if fileNum == 0 {
+			currPath = formatPathByInt(32)
+			fileNum = 32
+		} else {
+			currPath = formatPathByInt(fileNum)
+		}
+	} else if nextPost != "" {
+		fileNum++
+		if fileNum == 33 {
+			currPath = formatPathByInt(1)
+			fileNum = 1
+		} else {
+			currPath = formatPathByInt(fileNum)
+		}
+	}
 }

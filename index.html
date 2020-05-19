@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <img src={{ .PathToProccessedImage}} width="300" height="300" style="margin:0;"/>
+    <form method="post" action="/">
+        <input type="submit" name="p" value="Previous"/>
+        <input type="submit" name="n" value="Next">
+        <p>File name: {{ .FileName }} Execution took: {{ .ExecTime }} Figures found: {{ .FigureFound }}</p>
+    </form>
+</body>
+</html>
