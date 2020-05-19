@@ -59,9 +59,11 @@ func drawHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rect := scan(slc.arr)
+	rectangles := scan(slc.arr)
 
-	slc.SetRectangle(rect.start.x, rect.start.y, rect.end.x, rect.end.y, 2)
+	for _, rect := range rectangles {
+		slc.SetRectangle(rect.start.x, rect.start.y, rect.end.x, rect.end.y, 2)
+	}
 
 	imgRgba := slc.convertOwnBytesToImage()
 
