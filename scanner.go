@@ -1,5 +1,10 @@
 package main
 
+import (
+	"log"
+	"sync"
+)
+
 const (
 	cacheSize = 50
 )
@@ -24,15 +29,15 @@ func inCache(point point, cache []rectangle) bool {
 }
 
 func scan(image [][]byte) []rectangle {
+	log.Printf("Scan starting.\n")
 	lenX := len(image)
 	lenY := len(image[0])
 	cache := make([]rectangle, 0, cacheSize)
 
-	for x := 0; x < lenX-0; x++ {
-		for y := 0; y < lenY-0; y++ {
+	for x := 0; x < lenX; x++ {
+		for y := 0; y < lenY; y++ {
 			p := point{x: x, y: y}
-
-			if inCache(p, cache) || image[x][y] != 1 {
+			if image[x][y] != 1 || inCache(p, cache) {
 				continue
 			} else {
 				rect := dynamicScan(p, image)
@@ -40,12 +45,38 @@ func scan(image [][]byte) []rectangle {
 			}
 		}
 	}
+
 	return cache
 }
 
-func dynamicScan(start point, image [][]byte) rectangle {
-	lenX := len(image)
-	lenY := len(image[0])
+//imgCh chan [][]byte
+func getNewByteImage(xm, ym int) [][]byte {
+	log.Printf("Getting clear byte image.\n")
+	arr := make([][]byte, xm)
+	for i := 0; i < xm; i++ {
+		arr[i] = make([]byte, ym)
+	}
+	return arr
+	// imgCh <- arr
+}
+
+func fillByRecursive(start point, image [][]byte) [][]byte {
+	log.Printf("Getting figure points recursively, start point(%d, %d)\n", start.x, start.y)
+	//newImageCh := make(chan [][]byte)
+	// go getNewByteImage(len(image), len(image[0]), newImageCh)
+	newImage := getNewByteImage(len(image), len(image[0]))
+	points := recFindNearestPoints(image, start)
+	// newImage := <-newImageCh
+	for _, elem := range points {
+		newImage[elem.x][elem.y] = 1
+	}
+	return newImage
+}
+
+func dynamicScan(start point, byteImage [][]byte) rectangle {
+	image := fillByRecursive(start, byteImage)
+	xm := len(byteImage)
+	ym := len(byteImage[0])
 	rect := rectangle{
 		start: point{
 			x: start.x - 5,
@@ -67,54 +98,28 @@ func dynamicScan(start point, image [][]byte) rectangle {
 				y: rect.end.y,
 			},
 		}
-		//fmt.Printf("Rect: start(%d,%d)-end(%d,%d)\n", rect.start.x, rect.start.y, rect.end.x, rect.end.y)
 		if rect.start.x-1 > 0 {
 			rect.start.x--
 		}
 		if rect.start.y-1 > 0 {
 			rect.start.y--
 		}
-		if rect.end.x+1 < lenX {
+		if rect.end.x+1 < xm {
 			rect.end.x++
 		}
-		if rect.end.y+1 < lenY {
+		if rect.end.y+1 < ym {
 			rect.end.y++
 		}
-		check(image, &rect)
+		checkBorders(image, &rect)
 		if prevRect.start.x == rect.start.x && prevRect.start.y == rect.start.y && prevRect.end.x == rect.end.x && prevRect.end.y == rect.end.y {
 			break
 		}
 	}
-
-	formatRect(&rect, lenX, lenY, 10)
-
+	formatRect(&rect, xm, ym, 5)
 	return rect
 }
 
-func formatRect(rect *rectangle, xMax, yMax, pixelBound int) {
-	if rect.start.x-pixelBound < 1 {
-		rect.start.x = 1
-	} else {
-		rect.start.x -= pixelBound
-	}
-	if rect.start.y-pixelBound < 1 {
-		rect.start.y = 1
-	} else {
-		rect.start.y -= pixelBound
-	}
-	if rect.end.x+pixelBound > xMax-1 {
-		rect.end.x = xMax - 1
-	} else {
-		rect.end.x += pixelBound
-	}
-	if rect.end.y+pixelBound > yMax-1 {
-		rect.end.y = yMax - 1
-	} else {
-		rect.end.y += pixelBound
-	}
-}
-
-func check(image [][]byte, rect *rectangle) {
+func checkBorders(image [][]byte, rect *rectangle) {
 	if !checkYMin(image, *rect) {
 		rect.start.x++
 	}
@@ -165,5 +170,68 @@ func checkYPlus(image [][]byte, rect rectangle) bool {
 			return true
 		}
 	}
+
 	return false
+}
+
+func formatRect(rect *rectangle, xMax, yMax, pixelBound int) {
+	log.Printf("Formatting rect %v\n", *rect)
+	if rect.start.x-pixelBound < 1 {
+		rect.start.x = 1
+	} else {
+		rect.start.x -= pixelBound
+	}
+	if rect.start.y-pixelBound < 1 {
+		rect.start.y = 1
+	} else {
+		rect.start.y -= pixelBound
+	}
+	if rect.end.x+pixelBound > xMax-1 {
+		rect.end.x = xMax - 1
+	} else {
+		rect.end.x += pixelBound
+	}
+	if rect.end.y+pixelBound > yMax-1 {
+		rect.end.y = yMax - 1
+	} else {
+		rect.end.y += pixelBound
+	}
+}
+
+type rec struct {
+	points []point
+}
+
+func recFindNearestPoints(image [][]byte, start point) []point {
+	points := make([]point, 0, 32000)
+	rec := &rec{points: points}
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go recursiveFindNearestPoints(image, start, rec, wg)
+	wg.Wait()
+	log.Printf("points len:%d\n", len(rec.points))
+	return rec.points
+}
+
+//Concurrency
+func recursiveFindNearestPoints(image [][]byte, p point, rec *rec, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for _, elem := range rec.points {
+		if elem.x == p.x && elem.y == p.y {
+			return
+		}
+	}
+	rec.points = append(rec.points, p)
+	for dx := -1; dx <= 1; dx++ {
+		for dy := -1; dy <= 1; dy++ {
+			if dx == 0 && dy == 0 || p.x+dx < 0 || p.y+dy < 0 || p.x+dx > len(image) || p.y+dy > len(image[0]) {
+				continue
+			}
+			if image[p.x+dx][p.y+dy] == 1 {
+				wg.Add(1)
+				go recursiveFindNearestPoints(image, point{x: p.x + dx, y: p.y + dy}, rec, wg)
+			}
+		}
+	}
+
 }

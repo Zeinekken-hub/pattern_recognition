@@ -7,7 +7,7 @@
 </head>
 <body>
     <img src={{ .PathToProccessedImage}} width="300" height="300" style="margin:0;"/>
-    <form method="post" action="/">
+    <form method="post" action="/rec">
         <input type="submit" name="p" value="Previous"/>
         <input type="submit" name="n" value="Next">
         <p>File name: {{ .FileName }} Execution took: {{ .ExecTime }} Figures found: {{ .FigureFound }}</p>

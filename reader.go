@@ -3,9 +3,11 @@ package main
 import (
 	"image"
 	"image/color"
+	"log"
 )
 
 func getByteImage(image image.Image) (byteImage, error) {
+	log.Printf("Read image\n")
 	height := image.Bounds().Dy()
 	width := image.Bounds().Dx()
 	res := make([][]byte, width)

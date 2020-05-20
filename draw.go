@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	"image/color"
+	"log"
 )
 
 type byteImage struct {
@@ -13,24 +14,24 @@ func (arr *byteImage) Set(x, y int, b byte) {
 	arr.arr[x][y] = b
 }
 
-func (arr *byteImage) SetRectangle(x1, y1, x2, y2 int, b byte) {
+func (arr *byteImage) SetRectangle(x1, y1, x2, y2 int) {
 	for x := x1; x <= x2; x++ {
-		arr.Set(x, y1, b)
-		arr.Set(x, y2, b)
+		arr.Set(x, y1, 2)
+		arr.Set(x, y2, 2)
 	}
 	for y := y1; y <= y2; y++ {
-		arr.Set(x1, y, b)
-		arr.Set(x2, y, b)
+		arr.Set(x1, y, 2)
+		arr.Set(x2, y, 2)
 	}
 }
 
-func (arr *byteImage) setCenters(rects []rectangle) {
+func (arr *byteImage) SetCenters(rects []rectangle) {
 	for _, rect := range rects {
 		p := getCenterPoint(rect)
-		//fmt.Printf("Center of rect (%d, %d)\n", p.x, p.y)
+		log.Printf("Set center of rect (%d, %d)\n", p.x, p.y)
 		for dx := -3; dx <= 3; dx++ {
 			for dy := -3; dy <= 3; dy++ {
-				arr.arr[p.x+dx][p.y+dy] = 3
+				arr.Set(p.x+dx, p.y+dy, 3)
 			}
 		}
 	}
@@ -40,7 +41,8 @@ func getCenterPoint(rect rectangle) point {
 	return point{x: (rect.end.x + rect.start.x) / 2, y: (rect.end.y + rect.start.y) / 2}
 }
 
-func (arr *byteImage) convertOwnBytesToImage() *image.RGBA {
+func (arr *byteImage) NewRGBAImage() *image.RGBA {
+	log.Printf("Converting byte image to jpg\n")
 	image := image.NewRGBA(image.Rect(0, 0, 600, 600))
 	red := color.RGBA{200, 30, 30, 255}
 	green := color.RGBA{0, 230, 64, 1}

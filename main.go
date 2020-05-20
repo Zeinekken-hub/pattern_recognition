@@ -2,16 +2,19 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/jpeg"
+	"log"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
 )
 
-//RecognitionOutput ll
+//RecognitionOutput template
 type RecognitionOutput struct {
 	ExecTime              time.Duration
 	FigureFound           int
@@ -25,7 +28,7 @@ var (
 )
 
 func main() {
-	http.HandleFunc("/", drawHandler)
+	http.HandleFunc("/rec", drawHandler)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
@@ -35,7 +38,9 @@ func main() {
 func drawHandler(w http.ResponseWriter, r *http.Request) {
 	prev, next := r.FormValue("p"), r.FormValue("n")
 	getPathToFile(prev, next)
-	recOut, err := scanAndSaveImage(currPath)
+
+	recOut := &RecognitionOutput{}
+	err := scanImage(currPath, recOut)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 		return
@@ -45,42 +50,52 @@ func drawHandler(w http.ResponseWriter, r *http.Request) {
 	tmp.Execute(w, *recOut)
 }
 
-func scanAndSaveImage(imagePath string) (*RecognitionOutput, error) {
+func scanImage(imagePath string, recOut *RecognitionOutput) error {
 	file, err := os.Open(currPath)
 	if err != nil {
-		return nil, fmt.Errorf("error for reading file")
+		return fmt.Errorf("error for reading file")
 	}
 	defer file.Close()
 
 	start := time.Now()
 	img, err := jpeg.Decode(file)
-	slc, err := getByteImage(img)
 	if err != nil {
-		return nil, fmt.Errorf("get binary slice error")
+		return fmt.Errorf("error for decoding image")
 	}
-	rectangles := scan(slc.arr)
-	slc.setCenters(rectangles)
+	byteImg, err := getByteImage(img)
+	if err != nil {
+		return fmt.Errorf("get binary slice error")
+	}
+	log.Printf("Image name: %s\n", path.Base(currPath))
+	rectangles := scan(byteImg.arr)
+	byteImg.SetCenters(rectangles)
 	for _, rect := range rectangles {
-		slc.SetRectangle(rect.start.x, rect.start.y, rect.end.x, rect.end.y, 2)
+		byteImg.SetRectangle(rect.start.x, rect.start.y, rect.end.x, rect.end.y)
 	}
-	imgRgba := slc.convertOwnBytesToImage()
+	imgRgba := byteImg.NewRGBAImage()
 	elapsed := time.Since(start)
+	log.Printf("Time of scan executing: %v\n", elapsed)
 
+	recOut.ExecTime = elapsed
+	recOut.FigureFound = len(rectangles)
+
+	saveImage(imgRgba, recOut)
+
+	return nil
+}
+
+func saveImage(image *image.RGBA, recOut *RecognitionOutput) {
 	fName := strings.Split(currPath, "/")[1]
 	fPath := "static/data/" + fName
-	file, err = os.Create(fPath)
+	file, err := os.Create(fPath)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
-	jpeg.Encode(file, imgRgba, nil)
+	jpeg.Encode(file, image, nil)
 
-	return &RecognitionOutput{
-		ExecTime:              elapsed,
-		FigureFound:           len(rectangles),
-		PathToProccessedImage: fPath,
-		FileName:              fName,
-	}, nil
+	recOut.PathToProccessedImage = fPath
+	recOut.FileName = fName
 }
 
 func formatPathByInt(x int) string {
