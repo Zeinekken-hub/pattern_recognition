@@ -1,16 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+        integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
 </head>
+
 <body>
-    <img src={{ .PathToProccessedImage}} width="300" height="300" style="margin:0;"/>
-    <form method="post" action="/rec">
-        <input type="submit" name="p" value="Previous"/>
-        <input type="submit" name="n" value="Next">
-        <p>File name: {{ .FileName }} Execution took: {{ .ExecTime }} Figures found: {{ .FigureFound }}</p>
-    </form>
+    <div class="row">
+        <div class="col-6">
+            <img src={{ .PathToProccessedImage}} width="275" height="275" />
+            <form method="post" action="/rec">
+                <input type="submit" name="p" value="Previous" />
+                <input type="submit" name="n" value="Next">
+            </form>
+        </div>
+        <div class="col-6">
+            <table>
+                <thead>
+                    <th>Center</th>
+                    <th>Square</th>
+                </thead>
+                <tbody>
+                    {{range .Figures }}
+                    <tr>
+                        <td>{{.Center}} </td>
+                        <td>{{.Square}} </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            <h6>Max figure square: {{ .MaxSquare }} {{.MaxSquareCenter}}<br> Min figure square: {{ .MinSquare }}
+                {{.MinSquareCenter}}<br>File name: {{ .FileName }} <br>Execution took: {{ .ExecTime }} <br>Figures found: {{ .FigureFound }}</h6>
+        </div>
+    </div>
 </body>
+
 </html>

@@ -5,11 +5,11 @@ import (
 	"image"
 	"image/jpeg"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"text/template"
 	"time"
 )
@@ -20,6 +20,17 @@ type RecognitionOutput struct {
 	FigureFound           int
 	PathToProccessedImage string
 	FileName              string
+	MaxSquare             int
+	MinSquare             int
+	MaxSquareCenter       point
+	MinSquareCenter       point
+	Figures               []Figure
+}
+
+//Figure template
+type Figure struct {
+	Center point
+	Square int
 }
 
 var (
@@ -32,6 +43,8 @@ func main() {
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
+	log.Printf("Server started on localhost:8080\n")
+	log.Printf("Go to localhost:8080/rec to get started\n")
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -76,16 +89,50 @@ func scanImage(imagePath string, recOut *RecognitionOutput) error {
 	elapsed := time.Since(start)
 	log.Printf("Time of scan executing: %v\n", elapsed)
 
+	min, max := minSquareRectangle(rectangles), maxSquaredRectangle(rectangles)
+
 	recOut.ExecTime = elapsed
 	recOut.FigureFound = len(rectangles)
-
+	recOut.MaxSquare = max.square
+	recOut.MinSquare = min.square //
+	recOut.MaxSquareCenter = max.center
+	recOut.MinSquareCenter = min.center
+	recOut.Figures = make([]Figure, 0)
+	for _, elem := range rectangles {
+		recOut.Figures = append(recOut.Figures, Figure{Center: elem.center, Square: elem.square})
+	}
 	saveImage(imgRgba, recOut)
-
 	return nil
 }
 
+func maxSquaredRectangle(arr []rectangle) rectangle {
+	maxSquare := math.MinInt32
+	for _, elem := range arr {
+		maxSquare = int(math.Max(float64(maxSquare), float64(elem.square)))
+	}
+	for _, elem := range arr {
+		if maxSquare == elem.square {
+			return elem
+		}
+	}
+	return rectangle{}
+}
+
+func minSquareRectangle(arr []rectangle) rectangle {
+	minSquare := math.MaxInt32
+	for _, elem := range arr {
+		minSquare = int(math.Min(float64(minSquare), float64(elem.square)))
+	}
+	for _, elem := range arr {
+		if minSquare == elem.square {
+			return elem
+		}
+	}
+	return rectangle{}
+}
+
 func saveImage(image *image.RGBA, recOut *RecognitionOutput) {
-	fName := strings.Split(currPath, "/")[1]
+	fName := path.Base(currPath)
 	fPath := "static/data/" + fName
 	file, err := os.Create(fPath)
 	if err != nil {

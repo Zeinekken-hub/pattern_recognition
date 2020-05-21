@@ -27,18 +27,12 @@ func (arr *byteImage) SetRectangle(x1, y1, x2, y2 int) {
 
 func (arr *byteImage) SetCenters(rects []rectangle) {
 	for _, rect := range rects {
-		p := getCenterPoint(rect)
-		log.Printf("Set center of rect (%d, %d)\n", p.x, p.y)
 		for dx := -3; dx <= 3; dx++ {
 			for dy := -3; dy <= 3; dy++ {
-				arr.Set(p.x+dx, p.y+dy, 3)
+				arr.Set(rect.center.x+dx, rect.center.y+dy, 3)
 			}
 		}
 	}
-}
-
-func getCenterPoint(rect rectangle) point {
-	return point{x: (rect.end.x + rect.start.x) / 2, y: (rect.end.y + rect.start.y) / 2}
 }
 
 func (arr *byteImage) NewRGBAImage() *image.RGBA {
