@@ -12,7 +12,7 @@
 <body>
     <div class="row">
         <div class="col-6">
-            <img src={{ .PathToProccessedImage}} width="275" height="275" />
+            <img src={{ .PathToProccessedImage}} width="500" height="500" />
             <form method="post" action="/rec">
                 <input type="submit" name="p" value="Previous" />
                 <input type="submit" name="n" value="Next">
@@ -33,8 +33,8 @@
                     {{end}}
                 </tbody>
             </table>
-            <h6>Max figure square: {{ .MaxSquare }} {{.MaxSquareCenter}}<br> Min figure square: {{ .MinSquare }}
-                {{.MinSquareCenter}}<br>File name: {{ .FileName }} <br>Execution took: {{ .ExecTime }} <br>Figures found: {{ .FigureFound }}</h6>
+            <h6>Max figure square: {{ .MaxSquare }}<br> Min figure square: {{ .MinSquare }}
+                <br>File name: {{ .FileName }} <br>Execution took: {{ .ExecTime }} <br>Figures found: {{ .FigureFound }}</h6>
         </div>
     </div>
 </body>
